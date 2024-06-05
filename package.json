@@ -1,0 +1,11 @@
+{
+  "name": "io.github.insomnyawolf.vrcfuryextensions",
+  "displayName": "VRCFuryExtensions",
+  "version": "0.1",
+  "description": "Extended custom controls for VRCFury",
+  "unity": "2022.3.22",
+  "author": {
+    "name": "insomnyawolf"
+  },
+  "hideInEditor": false
+}
