@@ -2,12 +2,9 @@
     "name": "VRCFuryExtensionsEditor",
     "rootNamespace": "",
     "references": [
-        "VRCFury-Editor",
+        "VRCFuryExtensions",
         "VRCFury",
-        "VrcfEditorOnly",
-        "VRC.SDKBase.Editor.BuildPipeline",
-        "VRC.SDKBase.Editor",
-        "VRC.SDK3A.Editor"
+        "VRCFury-Editor"
     ],
     "includePlatforms": [
         "Editor"
@@ -15,44 +12,9 @@
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
-    "precompiledReferences": [
-        "System.Collections.Immutable.dll",
-        "Newtonsoft.Json.Vrcf.dll",
-        "VRCSDKBase.dll",
-        "VRCSDK3A.dll",
-        "VRC.Dynamics.dll",
-        "VRC.SDK3.Dynamics.PhysBone.dll",
-        "VRC.SDK3.Dynamics.Contact.dll",
-        "VRCSDKBase-Editor.dll"
-    ],
+    "precompiledReferences": [],
     "autoReferenced": false,
     "defineConstraints": [],
-    "versionDefines": [
-        {
-            "name": "com.vrchat.base",
-            "expression": "3.1.12",
-            "define": "VRC_NEW_HOOK_API"
-        },
-        {
-            "name": "com.vrchat.base",
-            "expression": "3.3.0",
-            "define": "VRC_NEW_PUBLIC_SDK"
-        },
-        {
-            "name": "com.vrchat.base",
-            "expression": "3.0.8",
-            "define": "VRCSDK_HAS_DRIVER_COPY"
-        },
-        {
-            "name": "com.vrchat.base",
-            "expression": "3.5.2",
-            "define": "VRCSDK_HAS_ANIMATOR_PLAY_AUDIO"
-        },
-        {
-            "name": "com.vrchat.base",
-            "expression": "3.5.2",
-            "define": "VRCSDK_HAS_HEAD_CHOP"
-        }
-    ],
+    "versionDefines": [],
     "noEngineReferences": false
 }

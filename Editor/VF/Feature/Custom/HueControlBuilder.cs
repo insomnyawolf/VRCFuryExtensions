@@ -165,8 +165,8 @@ namespace VF.Feature
             if (IsSliderInactiveAtZero)
             {
                 //drive = (state, on) => { if (!on) state.Drives(param, 0); };
-                defaultOn = def > 0;
-                isOn = param.IsGreaterThan(0);
+                //defaultOn = def > 0;
+                //isOn = param.IsGreaterThan(0);
             }
             else
             {
@@ -291,7 +291,7 @@ namespace VF.Feature
                 if (IsLogicInverted)
                 {
                     //XOR Magic possible?
-                    includeInRest = !includeInRest;
+                    //includeInRest = !includeInRest;
                 }
 
                 if (!includeInRest)
