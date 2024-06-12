@@ -12,38 +12,12 @@ using VF.Model.Feature;
 
 namespace VF.Feature
 {
-    internal class HueControlBuilder : FeatureBuilder<HueControl>
+    internal class HueControlBuilder : CustomFeatureBuilder<HueControl>
     {
-        public const string EditorTitle = "Custom " + nameof(HueControl);
-
-        private const bool UsePrefixOnParam = true;
-        private const bool HasIcon = false;
-        private const bool IsSliderInactiveAtZero = false;
-        private const bool IsLogicInverted = false;
-
-        private static int HueControlInternalId = 0;
-
-        public HueControlBuilder()
-        {
-            HueControlInternalId++;
-        }
-
-        public override string GetEditorTitle()
-        {
-            return EditorTitle;
-        }
-
-        private string GetInternalIdString()
-        {
-            return $"{EditorTitle} #{HueControlInternalId}";
-        }
-
         // Apply on upload
         [VFAutowired] private readonly RestingStateService RestingStateService;
 
         // Toggle
-        [VFAutowired] private readonly ClipRewriteService ClipRewriteService;
-        [VFAutowired] private readonly FixWriteDefaultsBuilder FixWriteDefaultsBuilder;
         [VFAutowired] private readonly ClipFactoryService ClipFactoryService;
 
         // Apply on upload & Toggle
@@ -141,57 +115,31 @@ namespace VF.Feature
         {
             var fx = GetFx();
 
-            var paramName = MaterialPropertyCache.MenuFullPath;
+            var fullMenuPath = MaterialPropertyCache.MenuFullPath;
 
-            var hasTitle = !string.IsNullOrEmpty(paramName);
-
-            var addMenuItem = (hasTitle || HasIcon); //&& model.addMenuItem;
-
-            CurrentParamName = $"{GetInternalIdString()} Menu #{uniqueModelNum}"; ;
+            CurrentParamName = $"{GetInternalIdString()} {fullMenuPath} #{uniqueModelNum}";
 
             var def = MaterialPropertyCache.Default;
 
             var param = fx.NewFloat(
-                paramName,
+                fullMenuPath,
                 synced: true,
                 def: def,
                 saved: true,
                 usePrefix: UsePrefixOnParam
             );
 
-            VFCondition isOn;
-            bool defaultOn;
+            VFCondition isOn = fx.Always(); ;
+            bool defaultOn = true;
 
-            if (IsSliderInactiveAtZero)
-            {
-                //drive = (state, on) => { if (!on) state.Drives(param, 0); };
-                //defaultOn = def > 0;
-                //isOn = param.IsGreaterThan(0);
-            }
-            else
-            {
-                defaultOn = true;
-                isOn = fx.Always();
-            }
-
-            if (addMenuItem)
-            {
-                manager.GetMenu().NewMenuSlider(
-                    paramName,
-                    param,
+            manager.GetMenu().NewMenuSlider(
+                    path: fullMenuPath,
+                    param: param,
                     icon: null
                 //icon: hasIcon ? MaterialPropertyCache.icon?.Get() : null
                 );
-            }
 
-            var layerName = paramName;
-
-            if (string.IsNullOrEmpty(layerName))
-            {
-                layerName = "Toggle";
-            }
-
-            var layer = fx.NewLayer(layerName);
+            var layer = fx.NewLayer(fullMenuPath);
             var off = layer.NewState("Off");
 
             var elements = MaterialPropertyCache.GetActions();
@@ -238,83 +186,12 @@ namespace VF.Feature
 
             onState.TransitionsToExit().When(onCase.Not());
 
-
             off.TransitionsTo(onState).When(onCase);
 
             if (defaultOn)
             {
                 layer.GetRawStateMachine().defaultState = onState.GetRaw();
                 off.TransitionsFromEntry().When();
-            }
-
-            AnimationClip restingClip = clip.Evaluate(defaultValue * clip.GetLengthInSeconds());
-
-            AnimationClip savedRestingClip = restingClip.Clone();
-            ClipRewriteService.AddAdditionalManagedClip(savedRestingClip);
-
-            RestingStateCacheList.Add(new RestingStateCache()
-            {
-                Value = weight,
-                AnimationClip = savedRestingClip,
-            });
-        }
-
-        private string CurrentParamName;
-
-        public override string GetClipPrefix()
-        {
-            if (CurrentParamName == null)
-            {
-                return EditorTitle;
-            }
-            return CurrentParamName.Replace('/', '_');
-        }
-
-        private readonly List<RestingStateCache> RestingStateCacheList = new List<RestingStateCache>();
-
-        internal class RestingStateCache
-        {
-            public VFAFloat Value;
-            public AnimationClip AnimationClip;
-        }
-
-        [FeatureBuilderAction(FeatureOrder.ApplyToggleRestingState)]
-        public void ApplyRestingState()
-        {
-            foreach (var item in RestingStateCacheList)
-            {
-                var anim = item.AnimationClip;
-                var value = item.Value;
-
-                bool includeInRest = IsSliderInactiveAtZero ? value.GetDefault() > 0 : true;
-
-                if (IsLogicInverted)
-                {
-                    //XOR Magic possible?
-                    //includeInRest = !includeInRest;
-                }
-
-                if (!includeInRest)
-                {
-                    return;
-                }
-
-                if (!anim.IsStatic())
-                {
-                    return;
-                }
-
-                foreach (var b in anim.GetFloatBindings())
-                {
-                    FixWriteDefaultsBuilder.RecordDefaultNow(b, true, true);
-                }
-
-                foreach (var b in anim.GetObjectBindings())
-                {
-                    FixWriteDefaultsBuilder.RecordDefaultNow(b, false, true);
-                }
-
-                RestingStateService.ApplyClipToRestingState(anim);
             }
         }
 
@@ -354,6 +231,5 @@ namespace VF.Feature
         //         Apply();
         //     });
         // }
-
     }
 }

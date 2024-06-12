@@ -16,11 +16,6 @@ namespace VF.Model.Feature
         public float Default = 0;
         public List<Renderer> Renderers = new List<Renderer>();
 
-        public string GetClipPrefix()
-        {
-            return MenuFullPath.Replace('/', '_');
-        }
-
         //// You dumbfuck inso you didn't need that
         //public float GetDefaultValueCalculated()
         //{
