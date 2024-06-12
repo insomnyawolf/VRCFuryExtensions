@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using VF.Model.StateAction;
 
-
 namespace VF.Model.Feature
 {
     // Material Property
@@ -15,18 +14,6 @@ namespace VF.Model.Feature
         public float Max = 0;
         public float Default = 0;
         public List<Renderer> Renderers = new List<Renderer>();
-
-        //// You dumbfuck inso you didn't need that
-        //public float GetDefaultValueCalculated()
-        //{
-        //    var delta = Max - Min;
-
-        //    var value = Default * delta;
-
-        //    var final = value - Min;
-
-        //    return final;
-        //}
 
         public void TryAddRenderer(Renderer Renderer)
         {
@@ -47,8 +34,6 @@ namespace VF.Model.Feature
 
         public IEnumerable<MaterialPropertyAction> GetActions()
         {
-            //var value = GetDefaultValueCalculated();
-
             foreach (var render in Renderers)
             {
                 var temp = new MaterialPropertyAction()

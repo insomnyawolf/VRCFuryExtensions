@@ -18,10 +18,6 @@ namespace VF.Model.Feature
         public string Name = "";
         public GuidTexture2d Icon;
         public GuidAnimationClip Animation;
-        [NonSerialized]
-        public object IsOn;
-        [NonSerialized]
-        public object Cond;
 
         public AnimationClipAction GetAction()
         {
