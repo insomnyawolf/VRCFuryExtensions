@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
 using VF.Model.StateAction;
 
 namespace VF.Model.Feature
@@ -10,12 +9,11 @@ namespace VF.Model.Feature
     internal class EmojiControl : NewFeatureModel
     {
         public string MenuPath = "";
-        public ParticleSystem ParticleSystem;
         public Texture2D Icon;
+        public ParticleSystem ParticleSystem;
+        public float Duration;
         public List<Emoji> Emojis;
     }
-
-    
 
     [Serializable]
     internal class Emoji
@@ -36,5 +34,11 @@ namespace VF.Model.Feature
                 clip = CalculatedAnimation,
             };
         }
+    }
+
+    internal class EmojiHelper
+    {
+        public Sprite[] Sprites { get; set; }
+        public Texture2D CombinedTexture { get; set; }
     }
 }

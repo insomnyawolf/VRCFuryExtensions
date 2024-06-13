@@ -23,7 +23,7 @@ namespace VF.Feature
         {
             if (EditorTitleCache is null)
             {
-                EditorTitleCache = $"Custom{typeof(ModelType).Name}";
+                EditorTitleCache = $"Custom {typeof(ModelType).Name}";
             }
 
             return EditorTitleCache;
@@ -31,7 +31,7 @@ namespace VF.Feature
 
         public string GetInternalIdString()
         {
-            return $"{GetEditorTitle()}{InternalId}";
+            return $"{GetEditorTitle()} {InternalId}";
         }
 
         public override string GetClipPrefix()
