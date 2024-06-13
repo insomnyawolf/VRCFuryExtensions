@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UIElements;
 using VF.Model.StateAction;
 
 namespace VF.Model.Feature
@@ -8,16 +10,22 @@ namespace VF.Model.Feature
     internal class EmojiControl : NewFeatureModel
     {
         public string MenuPath = "";
-        public GuidTexture2d Icon;
+        public ParticleSystem ParticleSystem;
+        public Texture2D Icon;
         public List<Emoji> Emojis;
     }
+
+    
 
     [Serializable]
     internal class Emoji
     {
         public string Name = "";
-        public GuidTexture2d Icon;
-        public GuidAnimationClip Animation;
+        public Texture2D Icon;
+        [NonSerialized]
+        public Sprite Sprite;
+        [NonSerialized]
+        public AnimationClip CalculatedAnimation;
 
         public AnimationClipAction GetAction()
         {
@@ -25,7 +33,7 @@ namespace VF.Model.Feature
             {
                 androidActive = true,
                 desktopActive = true,
-                clip = Animation,
+                clip = CalculatedAnimation,
             };
         }
     }
