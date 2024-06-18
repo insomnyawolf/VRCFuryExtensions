@@ -10,6 +10,7 @@ using VF.Service;
 using VF.Injector;
 using UnityEngine;
 using VF.Builder;
+using System.Security.Policy;
 
 namespace VF.Feature
 {
@@ -31,18 +32,24 @@ namespace VF.Feature
 
         private EditorCurveBinding EnableBinding;
 
+        private AnimationCurve EnableCurve;
+
+        private EmojiHelper EmojiHelper;
+
+        private ParticleSystemRenderer ParticleSystemRenderer;
+
         [FeatureBuilderAction(FeatureOrder.ApplyDuringUpload)]
         public void DisableParticleSystemByDefault()
         {
-            if (model.ParticleSystem is not ParticleSystem ps)
+            if (model.ParticleSystem is not ParticleSystem ParticleSystem)
             {
                 // Error gordo aqui
                 throw new Exception();
             }
 
-            var relativePath = ps.GetRelativePath();
-
             CurrentParamName = $"{GetInternalIdString()} PreConfig #{uniqueModelNum}";
+
+            var relativePath = ParticleSystem.GetRelativePath();
 
             ChangeSpriteBinding = new EditorCurveBinding()
             {
@@ -65,26 +72,13 @@ namespace VF.Feature
                 legacy = false,
             };
 
+            EnableCurve = AnimationCurve.Constant(0, model.Duration, 1);
+
             var disabledCurve = AnimationCurve.Constant(0, 0, 0);
 
             clip.SetCurve(EnableBinding, disabledCurve);
 
             RestingStateService.ApplyClipToRestingState(clip);
-
-            //var action = new AnimationClipAction()
-            //{
-            //    androidActive = true,
-            //    desktopActive = true,
-            //    clip = clip,
-            //};
-
-            //var state = new Model.State();
-
-            //state.actions.Add(action);
-
-            //var clip2 = ActionClipService.LoadState("applyDuringUpload", state);
-
-            //RestingStateService.ApplyClipToRestingState(clip2);
         }
 
         [FeatureBuilderAction(FeatureOrder.Default)]
@@ -119,9 +113,9 @@ namespace VF.Feature
             tsa.mode = ParticleSystemAnimationMode.Sprites;
             tsa.frameOverTime = 0;
 
-            var helper = GetPackedEmojisAndCalculateUV(model);
+            EmojiHelper = GetPackedEmojisAndCalculateUV(model);
 
-            var sprites = helper.Sprites;
+            var sprites = EmojiHelper.Sprites;
 
             for (var i = 0; i < sprites.Length; i++)
             {
@@ -129,12 +123,26 @@ namespace VF.Feature
                 tsa.AddSprite(current);
             }
 
-            var renderer = ps.GetComponent<ParticleSystemRenderer>();
+            CreateAnimationClips(model, sprites);
 
-            renderer.material.mainTexture = helper.CombinedTexture;
+            ParticleSystemRenderer = ps.GetComponent<ParticleSystemRenderer>();
 
-            CreateAnimationClips(model);
+            ParticleSystemRenderer.material.mainTexture = EmojiHelper.CombinedTexture;
         }
+
+        //[FeatureBuilderAction(FeatureOrder.RemoveJunkAnimators)]
+        //// Weird Bypass to avoid saving the renderer material twice...
+        //public void CleanupRenderer()
+        //{
+        //    ParticleSystemRenderer.material.mainTexture = null;
+        //}
+
+        //[FeatureBuilderAction(FeatureOrder.ResetAnimatorAfter)]
+        //// Weird Bypass to avoid saving the renderer material twice...
+        //public void RestoreRenderer()
+        //{
+        //    ParticleSystemRenderer.material.mainTexture = EmojiHelper.CombinedTexture;
+        //}
 
         internal EmojiHelper GetPackedEmojisAndCalculateUV(EmojiControl emojiControl)
         {
@@ -156,17 +164,29 @@ namespace VF.Feature
 
             var packed = new Texture2D(0, 0)
             {
-                name = $"{GetInternalIdString()}_{emojiControl.MenuPath}_Main"
+                name = $"TEMP_{GetInternalIdString()}_{emojiControl.MenuPath}_Main",
             };
 
             var uvs = packed.PackTextures(textures: originals, padding: 0, maximumAtlasSize: 4096, makeNoLongerReadable: false);
 
             // That's needed for live builds, else it won't e able to play the requiered sprite
+
             VRCFuryAssetDatabase.SaveAsset(packed, AvatarManager.tmpDir, packed.name);
 
-            var sprites = new Sprite[count];
+            var workaroundCount = count;
+
+            while (workaroundCount % 10 != 0)
+            {
+                workaroundCount++;
+            }
+
+            var sprites = new Sprite[workaroundCount];
+
+            
 
             var middle = Vector2.one / 2;
+
+            Sprite lastForWorkaround = null;
 
             for (int i = 0; i < count; i++)
             {
@@ -180,10 +200,18 @@ namespace VF.Feature
 
                 sprite.name = $"{GetInternalIdString()}_{emojiControl.MenuPath}_{em.Name}";
 
-                // That's needed for live builds, else it won't e able to play the requiered sprite
+                // That's needed for live builds, else it won't
+                // be able to create the requiered sprites
                 VRCFuryAssetDatabase.SaveAsset(sprite, AvatarManager.tmpDir, sprite.name);
 
+                em.Sprite = sprite;
                 sprites[i] = sprite;
+                lastForWorkaround = sprite;
+            }
+
+            for (int i = count; i < sprites.Length; i++)
+            {
+                sprites[i] = lastForWorkaround;
             }
 
             //AssetDatabase.Refresh();
@@ -195,19 +223,20 @@ namespace VF.Feature
             };
 
             return result;
+
         }
 
-        internal void CreateAnimationClips(EmojiControl emojiControl)
+        internal void CreateAnimationClips(EmojiControl emojiControl, Sprite[] sprites)
         {
             var emojis = emojiControl.Emojis;
 
-            var frameIndexVariation = 1f / emojis.Count;
+            var frameIndexVariation = 1f / sprites.Length;
 
             var currentFrameIndex = 0f;
 
             for (int i = 0; i < emojis.Count; i++)
             {
-                var emoji = emojis[i];
+                Emoji emoji = emojis[i];
 
                 var clip = new AnimationClip()
                 {
@@ -220,31 +249,22 @@ namespace VF.Feature
 
                 // Change mapped sprite
 
-                var changeSpriteCurve = AnimationCurve.Constant(0, 0, currentFrameIndex);
-
-                clip.SetCurve(ChangeSpriteBinding, changeSpriteCurve);
-
-                // Toggle
-
-                var enablePsCurve = AnimationCurve.Constant(0, model.Duration, 1);
-
-                //const float animDiffTime = 0.01f;
-
-                //var keyframes = new Keyframe[]
-                //{
-                //    // Turn On
-                //    new(0, 1),
-                //    // Keep On
-                //    new(model.Duration - animDiffTime, 1),
-                //    // Turn Off
-                //    new(model.Duration, 0),
-                //};
-
-                //var enablePsCurve = new AnimationCurve(keyframes);
-
-                clip.SetCurve(EnableBinding, enablePsCurve);
+                var spriteRef = AnimationCurve.Constant(0, 0, currentFrameIndex);
 
                 currentFrameIndex += frameIndexVariation;
+
+                //var spriteRef = new ObjectReferenceKeyframe[]
+                //{
+                //    new ObjectReferenceKeyframe
+                //    {
+                //        time = 0,
+                //        value = emoji.Sprite,
+                //    }
+                //};
+
+                clip.SetCurve(ChangeSpriteBinding, spriteRef);
+
+                clip.SetCurve(EnableBinding, EnableCurve);
             }
         }
 
