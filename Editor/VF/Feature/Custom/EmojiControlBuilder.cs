@@ -10,12 +10,15 @@ using VF.Service;
 using VF.Injector;
 using UnityEngine;
 using VF.Builder;
-using System.Security.Policy;
+using System.Collections.Generic;
+using System.IO;
 
 namespace VF.Feature
 {
     internal class EmojiControlBuilder : CustomFeatureBuilder<EmojiControl>
     {
+        private static readonly AnimationCurve DisabledCurve = AnimationCurve.Constant(0, 0, 0);
+
         [VFAutowired] private readonly AvatarManager AvatarManager;
 
         // Create Togle State Layers
@@ -32,19 +35,19 @@ namespace VF.Feature
 
         private EditorCurveBinding EnableBinding;
 
-        private AnimationCurve EnableCurve;
-
         private EmojiHelper EmojiHelper;
 
         private ParticleSystemRenderer ParticleSystemRenderer;
 
+        private readonly List<string> ToBeCleanedUp = new List<string>();
+
         [FeatureBuilderAction(FeatureOrder.ApplyDuringUpload)]
-        public void DisableParticleSystemByDefault()
+        public void ApplyDuringUpload()
         {
             if (model.ParticleSystem is not ParticleSystem ParticleSystem)
             {
                 // Error gordo aqui
-                throw new Exception();
+                throw new NullReferenceException(nameof(ParticleSystem));
             }
 
             CurrentParamName = $"{GetInternalIdString()} PreConfig #{uniqueModelNum}";
@@ -65,6 +68,11 @@ namespace VF.Feature
                 type = typeof(GameObject)
             };
 
+            DisableParticleSystemByDefault();
+        }
+
+        public void DisableParticleSystemByDefault()
+        {
             var clip = new AnimationClip()
             {
                 hideFlags = HideFlags.None,
@@ -72,11 +80,7 @@ namespace VF.Feature
                 legacy = false,
             };
 
-            EnableCurve = AnimationCurve.Constant(0, model.Duration, 1);
-
-            var disabledCurve = AnimationCurve.Constant(0, 0, 0);
-
-            clip.SetCurve(EnableBinding, disabledCurve);
+            clip.SetCurve(EnableBinding, DisabledCurve);
 
             RestingStateService.ApplyClipToRestingState(clip);
         }
@@ -144,6 +148,26 @@ namespace VF.Feature
         //    ParticleSystemRenderer.material.mainTexture = EmojiHelper.CombinedTexture;
         //}
 
+        [FeatureBuilderAction(FeatureOrder.Validation)]
+        // Cleanup
+        public void RestoreRenderer()
+        {
+            var currentDir = Directory.GetCurrentDirectory();
+
+            for (var i = 0; i < ToBeCleanedUp.Count; i++)
+            {
+                var current = ToBeCleanedUp[i];
+
+                var filesToDelete = Directory.GetFiles(currentDir, $"{current}*");
+
+                for (int j = 0; j < filesToDelete.Length; j++)
+                {
+                    var current2 = filesToDelete[j];
+                    File.Delete(current2);
+                }
+            }
+        }
+
         internal EmojiHelper GetPackedEmojisAndCalculateUV(EmojiControl emojiControl)
         {
             var emojis = emojiControl.Emojis;
@@ -167,11 +191,19 @@ namespace VF.Feature
                 name = $"TEMP_{GetInternalIdString()}_{emojiControl.MenuPath}_Main",
             };
 
-            var uvs = packed.PackTextures(textures: originals, padding: 0, maximumAtlasSize: 4096, makeNoLongerReadable: false);
+            var uvs = packed.PackTextures(textures: originals, padding: 1, maximumAtlasSize: 2048, makeNoLongerReadable: false);
 
             // That's needed for live builds, else it won't e able to play the requiered sprite
 
-            VRCFuryAssetDatabase.SaveAsset(packed, AvatarManager.tmpDir, packed.name);
+            var safeName = VRCFuryAssetDatabase.MakeFilenameSafe(packed.name);
+
+            var dir = AvatarManager.tmpDir;
+
+            VRCFuryAssetDatabase.SaveAsset(packed, dir, safeName);
+
+            var pathToCleanup = $"{dir}/{safeName}";
+
+            ToBeCleanedUp.Add(pathToCleanup);
 
             var workaroundCount = count;
 
@@ -181,8 +213,6 @@ namespace VF.Feature
             }
 
             var sprites = new Sprite[workaroundCount];
-
-            
 
             var middle = Vector2.one / 2;
 
@@ -223,7 +253,6 @@ namespace VF.Feature
             };
 
             return result;
-
         }
 
         internal void CreateAnimationClips(EmojiControl emojiControl, Sprite[] sprites)
@@ -251,20 +280,41 @@ namespace VF.Feature
 
                 var spriteRef = AnimationCurve.Constant(0, 0, currentFrameIndex);
 
-                currentFrameIndex += frameIndexVariation;
-
-                //var spriteRef = new ObjectReferenceKeyframe[]
+                //var enableCurve = new ObjectReferenceKeyframe[]
                 //{
                 //    new ObjectReferenceKeyframe
                 //    {
                 //        time = 0,
                 //        value = emoji.Sprite,
-                //    }
+                //    },
                 //};
+
+                currentFrameIndex += frameIndexVariation;
 
                 clip.SetCurve(ChangeSpriteBinding, spriteRef);
 
-                clip.SetCurve(EnableBinding, EnableCurve);
+                var enableKeyframes = new Keyframe[]
+                {
+                    new Keyframe
+                    {
+                        time = 0,
+                        value = 1,
+                    },
+                    new Keyframe
+                    {
+                        time = model.Duration - 0.01f,
+                        value = 1,
+                    },
+                    new Keyframe
+                    {
+                        time = model.Duration,
+                        value = 0,
+                    },
+                };
+
+                var enableCurve = new AnimationCurve(enableKeyframes);
+
+                clip.SetCurve(EnableBinding, enableCurve);
             }
         }
 
@@ -303,7 +353,7 @@ namespace VF.Feature
 
             VFCondition onCase = param.IsTrue();
 
-            Action<VFState, bool> drive = (state, on) => state.Drives(param, on ? 1 : 0);
+            //Action<VFState, bool> drive = (state, on) => state.Drives(param, on ? 1 : 0);
 
             manager.GetMenu().NewMenuButton(
                     path: fullMenuPath,
